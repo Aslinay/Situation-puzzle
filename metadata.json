@@ -1,0 +1,8 @@
+{
+  "name": "Noah's Ark: Lucia's Testimony",
+  "description": "An interactive underwater mystery and lateral thinking puzzle. Interrogate survivor Lucia to uncover the truth behind the Ark and the receding seas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
