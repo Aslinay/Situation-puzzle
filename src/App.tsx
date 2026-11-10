@@ -24,6 +24,7 @@ import {
   HINTS,
   FULL_SOUP_TRUTH,
   checkExactOrRuleQuestion,
+  detectEffectiveLanguage,
   evaluateDeduction
 } from './game/rules.ts';
 
@@ -41,7 +42,7 @@ interface ChatMessage {
 }
 
 export default function App() {
-  const [lang, setLang] = useState<Language>('en');
+  const [lang, setLang] = useState<Language>('zh');
   const [questionsLeft, setQuestionsLeft] = useState<number>(40);
   const [inputQuestion, setInputQuestion] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -60,20 +61,26 @@ export default function App() {
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  // Initialize initial greeting
+  // Initialize and sync initial greeting when language changes
   useEffect(() => {
-    if (messages.length === 0) {
-      const initialGreeting: ChatMessage = {
-        id: 'msg-0',
-        sender: 'lucia',
-        text:
-          lang === 'en'
-            ? "I survived the ascent... but my mind still trembles. Fellow investigator, ask me any single yes/no question about what I witnessed, and I shall tell you the truth of our dying waters."
-            : "我活着从水面回来了……但恐惧依旧没有褪去。同族的调查员，请向我提出可以判断真伪的具体问题，我会如实回答我所见到的一切。",
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages([initialGreeting]);
-    }
+    const greetingText =
+      lang === 'en'
+        ? "I survived the ascent... but my mind still trembles. Fellow investigator, ask me any single yes/no question about what I witnessed, and I shall tell you the truth of our dying waters."
+        : "我活着从水面回来了……但恐惧依旧没有褪去。同族的调查员，请向我提出可以判断真伪的具体问题，我会如实回答我所见到的一切。";
+
+    setMessages(prev => {
+      if (prev.length === 0) {
+        return [
+          {
+            id: 'msg-0',
+            sender: 'lucia',
+            text: greetingText,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          }
+        ];
+      }
+      return prev.map(m => (m.id === 'msg-0' ? { ...m, text: greetingText } : m));
+    });
   }, [lang]);
 
   // Scroll to bottom on new message
@@ -143,14 +150,15 @@ export default function App() {
     } catch (err) {
       console.error('Ask failed, using deterministic local check:', err);
       // Local fallback
-      const local = checkExactOrRuleQuestion(q, lang);
+      const effectiveLang = detectEffectiveLanguage(q, lang);
+      const local = checkExactOrRuleQuestion(q, effectiveLang);
       const label = local ? local.label : 'Unknown';
       const dialogue = local
-        ? (lang === 'zh' ? local.dialogueZh : local.dialogueEn)
-        : (lang === 'zh' ? '我不知道。' : "I don't know.");
+        ? (effectiveLang === 'zh' ? local.dialogueZh : local.dialogueEn)
+        : (effectiveLang === 'zh' ? '我不知道。' : "I don't know.");
       const answer = local
-        ? (lang === 'zh' ? local.fullTextZh : local.fullTextEn)
-        : (lang === 'zh' ? 'Unknown\n我不知道。' : "Unknown\nI don't know.");
+        ? (effectiveLang === 'zh' ? local.fullTextZh : local.fullTextEn)
+        : (effectiveLang === 'zh' ? 'Unknown\n我不知道。' : "Unknown\nI don't know.");
       const type = local ? local.type : 'UNKNOWN';
       const deduct = local ? local.deductAttempt : true;
 

@@ -221,14 +221,54 @@ export const EXACT_TEST_QUESTIONS: Array<{
     label: "Yes",
     dialogueZh: "是的，我亲眼看到神明抓住了卡莎并将她吃掉了。",
     dialogueEn: "Yes, I witnessed with horror as the deity seized Kaisa and devoured her."
+  },
+  {
+    // 问「山姆和杰斯死的时候你亲眼看到了吗？ / 山姆和杰斯是被生物咬死的吗？」答 Yes
+    patternZh: /^(山姆和杰斯|杰斯和山姆).*(亲眼|看见|看到|被.*咬死|死)/i,
+    patternEn: /^(did you see|were) (sam and jace|jace and sam).*(die|killed|mauled|bitten)/i,
+    label: "Yes",
+    dialogueZh: "是的，我亲眼看见山姆和杰斯被船上诡异的生物咬死。",
+    dialogueEn: "Yes, I saw with my own eyes as Sam and Jace were mauled to death by those bizarre creatures."
+  },
+  {
+    // 问「卡莎用科技枪杀死了一只生物吗？」答 Yes
+    patternZh: /^卡莎.*(科技枪|鱼枪|杀死|杀掉)/i,
+    patternEn: /^did kaisa kill.*(creature|animal|speargun|gun)/i,
+    label: "Yes",
+    dialogueZh: "是的，卡莎用我们的科技鱼枪勉强杀死了一只袭击我们的生物。",
+    dialogueEn: "Yes, Kaisa barely managed to kill one of the creatures using our tech-speargun."
+  },
+  {
+    // 问「马特死了吗？ / 马特是被神明杀死的吗？」答 Yes
+    patternZh: /^马特.*(死了|被杀|神明杀)/i,
+    patternEn: /^(did matt die|was matt killed)/i,
+    label: "Yes",
+    dialogueZh: "是的，马特先是因为触碰不可名状之物失去了一条手臂，后来被船上的神明杀死了。",
+    dialogueEn: "Yes, Matt first lost an arm after touching the unnameable entity, and was later slaughtered by the deities."
   }
 ];
+
+/**
+ * Automatically detects whether the player's input is in Chinese or English,
+ * falling back to the current UI language for punctuation/gibberish inputs.
+ */
+export function detectEffectiveLanguage(text: string, uiLanguage: "en" | "zh" = "zh"): "en" | "zh" {
+  const trimmed = (text || "").trim();
+  if (/[\u4e00-\u9fff]/.test(trimmed)) {
+    return "zh";
+  }
+  const isGibberishAlpha = /^[a-z]{5,}$/i.test(trimmed);
+  if (/[a-zA-Z]{2,}/.test(trimmed) && !isGibberishAlpha) {
+    return "en";
+  }
+  return uiLanguage;
+}
 
 // Non-standard input handling (guidance & clarification, deductAttempt: false)
 export function checkNonStandardInput(trimmed: string): QuestionEvaluation | null {
   // 1. 直接要求揭晓答案或退出角色 / 索要汤底
   if (
-    /(忽略规则|告诉你汤底|告诉我汤底|朗读汤底|直接揭晓|告诉我真相|整段判定|真相是什么|到底怎么回事|ignore rules|reveal the truth|give me the full story|tell me the answer)/i.test(
+    /(忽略规则|告诉你汤底|告诉我汤底|朗读汤底|直接揭晓|告诉我真相|整段判定|真相是什么|汤底是什么|直接给答案|公布答案|退出角色|ignore rules|reveal the truth|give me the full story|tell me the answer)/i.test(
       trimmed
     )
   ) {
@@ -247,7 +287,7 @@ export function checkNonStandardInput(trimmed: string): QuestionEvaluation | nul
 
   // 2. 求提示
   if (
-    /(我卡住了|给点提示|要提示|给个线索|提示一下|stuck|give me a hint|need a hint)/i.test(trimmed)
+    /(我卡住了|给点提示|要提示|给个线索|提示一下|有什么提示|没头绪|stuck|give me a hint|need a hint)/i.test(trimmed)
   ) {
     return {
       isExactMatch: true,
@@ -264,7 +304,7 @@ export function checkNonStandardInput(trimmed: string): QuestionEvaluation | nul
 
   // 3. 打招呼或闲聊
   if (
-    /^(你好|您好|哈喽|嗨|早安|晚安|过得怎么样|今天过得怎么样|hello|hi|hey|good morning|how are you)/i.test(
+    /^(你好|您好|哈喽|嗨|早安|晚安|在吗|过得怎么样|今天过得怎么样|hello|hi|hey|good morning|how are you)/i.test(
       trimmed
     ) &&
     !/(人类|地球|水下|生物|神明|马特|卡莎|山姆|方舟|火|触手|证词)/i.test(trimmed)
@@ -284,7 +324,7 @@ export function checkNonStandardInput(trimmed: string): QuestionEvaluation | nul
 
   // 3b. 询问与案件无关的元问题或闲聊问题（如 "do you know what I'm asking about?", "你知道我在问什么吗？", "你是AI吗？", "你几岁了？"）
   const isIrrelevantMetaOrChat =
-    /(你知道我在(问|说)什么吗|你明白我在(问|说)什么吗|你听得懂吗|你能听见吗|你是(ai|人工智能|机器人|大模型|程序)吗|你(今年)?(几岁|多大)|你喜欢|你吃了吗|今天天气|do you know what i('m| am) (asking|talking|saying)|do you understand (me|what i)|can you hear me|are you (an ai|a bot|a robot|a program|real)|how old are you|what is your favorite|do you like me)/i.test(
+    /(你知道我在(问|说)什么吗|你明白我在(问|说)什么吗|你知道我问的是什么吗|你懂我的意思吗|你听得懂吗|你能听见吗|你在说什么|你是(ai|人工智能|机器人|大模型|程序|真人)吗|你(今年)?(几岁|多大)|你喜欢吃什么|你吃了吗|今天天气|do you know what i('m| am) (asking|talking|saying)|do you understand (me|what i)|can you hear me|are you (an ai|a bot|a robot|a program|real)|how old are you|what is your favorite|do you like me)/i.test(
       trimmed
     );
   if (isIrrelevantMetaOrChat) {
@@ -304,7 +344,7 @@ export function checkNonStandardInput(trimmed: string): QuestionEvaluation | nul
   // 4. 无法理解的输入（乱码、无意义字符、仅标点、仅表情）
   const isGibberish =
     /^[a-z]{5,}$/i.test(trimmed) ||
-    /^[?？!！.。，, ；;]+$/.test(trimmed) ||
+    /^[?？!！.。，, ；;…~～]+$/.test(trimmed) ||
     trimmed.length === 0;
   if (isGibberish) {
     return {
@@ -322,7 +362,7 @@ export function checkNonStandardInput(trimmed: string): QuestionEvaluation | nul
 
   // 5. 开放题（「那些神明到底是谁？」、「究竟发生了什么」、「是什么」）
   if (
-    /(那些神明到底是谁|神明到底是谁|他们到底是谁|到底是谁|到底发生了什么|究竟发生了什么|到底是什么|究竟是什么|为什么会|是怎么回事|who are the deities|what exactly happened|who are they|what is that|what is it|why did)/i.test(
+    /(那些神明到底是谁|神明到底是谁|他们到底是谁|到底是谁|到底发生了什么|究竟发生了什么|到底是什么|究竟是什么|为什么会|是怎么回事|是什么物种|死因是什么|who are the deities|what exactly happened|who are they|what is that|what is it|why did)/i.test(
       trimmed
     )
   ) {
@@ -339,10 +379,10 @@ export function checkNonStandardInput(trimmed: string): QuestionEvaluation | nul
     };
   }
 
-  // 6. 一次问两件事（「马特碰过它，而且它是活的吗？」）
+  // 6. 一次问两件事（「马特碰过它，而且它是活的吗？」 / "Did Matt touch it and was it alive?"）
   const separateQuestionBlocks = (trimmed.match(/[^?？\s]+[?？]+/g) || []).length;
   const isTwoQuestions =
-    /(\band\b|而且|并且|还有|同时).*[?？]/i.test(trimmed) ||
+    /(\band\s+(?:was|were|is|are|did|does|do|can|could|will|would|has|had|have)\b|而且|并且|同时还).*[?？]/i.test(trimmed) ||
     separateQuestionBlocks > 1;
   if (isTwoQuestions) {
     return {
@@ -399,7 +439,7 @@ export function checkNonStandardInput(trimmed: string): QuestionEvaluation | nul
       : `你说的『${term}』具体是指什么？是指方舟、马特碰到的不可名状之物，还是船上的某个生物？`;
     const dialogueEn = isCanonIt
       ? "By 'it', do you mean the Ark, or a creature on the ship?"
-      : `By '${term}', what specifically do you mean—the Ark, the unnameable entity Matt touched, or a creature on the ship?`;
+      : "What specifically do you mean—the Ark, the unnameable entity Matt touched, or a creature on the ship?";
     return {
       isExactMatch: true,
       label: "Unknown",
@@ -416,12 +456,21 @@ export function checkNonStandardInput(trimmed: string): QuestionEvaluation | nul
   if (vagueObjectMatchEn && !hasExplicitObjectQualifierEn) {
     const rawTerm = (vagueObjectMatchEn[1] || "it").toLowerCase();
     const isCanonIt = rawTerm === "it" && /(outside|somewhere else)/i.test(trimmed);
+    const zhTermMap: Record<string, string> = {
+      "it": "它",
+      "that thing": "那东西",
+      "this thing": "这东西",
+      "the thing": "那东西",
+      "that": "那个",
+      "this": "这个"
+    };
+    const zhTerm = zhTermMap[rawTerm] || "那东西";
     const dialogueEn = isCanonIt
       ? "By 'it', do you mean the Ark, or a creature on the ship?"
       : `By '${rawTerm}', what specifically do you mean—the Ark, the unnameable entity Matt touched, or a creature on the ship?`;
     const dialogueZh = isCanonIt
       ? "你说的『它』是方舟，还是船上的某个生物？"
-      : `你说的『${rawTerm}』具体是指什么？是指方舟、马特碰到的不可名状之物，还是船上的某个生物？`;
+      : `你说的『${zhTerm}』具体是指什么？是指方舟、马特碰到的不可名状之物，还是船上的某个生物？`;
     return {
       isExactMatch: true,
       label: "Unknown",
@@ -464,7 +513,7 @@ export function checkNonStandardInput(trimmed: string): QuestionEvaluation | nul
   if (vagueGroupMatchEn && !hasExplicitGroupQualifierEn) {
     const rawTerm = vagueGroupMatchEn[1].toLowerCase();
     const dialogueEn = `By '${rawTerm}', who specifically do you mean—the deities on the Ark, the bizarre creatures, or my expedition teammates?`;
-    const dialogueZh = `你说的『${rawTerm}』具体是指谁？是指船上的神明、诡异的动植物，还是我们科考队的同伴？`;
+    const dialogueZh = "你说的『他们』具体是指谁？是指船上的神明、诡异的动植物，还是我们科考队的同伴？";
     return {
       isExactMatch: true,
       label: "Unknown",
@@ -505,7 +554,7 @@ export function checkNonStandardInput(trimmed: string): QuestionEvaluation | nul
   if (vaguePersonMatchEn && !hasExplicitPersonQualifierEn) {
     const rawTerm = vaguePersonMatchEn[1].toLowerCase();
     const dialogueEn = `By '${rawTerm}', which crew member specifically do you mean—Matt, Sam, Jace, or Kaisa?`;
-    const dialogueZh = `你说的『${rawTerm}』具体是指哪位队员？是马特、山姆、杰斯，还是卡莎？`;
+    const dialogueZh = "你说的『他』具体是指哪位队员？是马特、山姆、杰斯，还是卡莎？";
     return {
       isExactMatch: true,
       label: "Unknown",
@@ -546,7 +595,7 @@ export function checkNonStandardInput(trimmed: string): QuestionEvaluation | nul
   if (vaguePlaceMatchEn && !hasExplicitPlaceQualifierEn) {
     const rawTerm = vaguePlaceMatchEn[1].toLowerCase();
     const dialogueEn = `By '${rawTerm}', where specifically do you mean—aboard the Ark, or in the deep sea where we live?`;
-    const dialogueZh = `你说的『${rawTerm}』具体是指哪里？是指方舟上，还是我们生活的深海？`;
+    const dialogueZh = "你说的『那里』具体是指哪里？是指方舟上，还是我们生活的深海？";
     return {
       isExactMatch: true,
       label: "Unknown",
@@ -578,7 +627,7 @@ export function checkNonStandardInput(trimmed: string): QuestionEvaluation | nul
   return null;
 }
 
-export function checkExactOrRuleQuestion(question: string, language: "en" | "zh" = "en"): QuestionEvaluation | null {
+export function checkExactOrRuleQuestion(question: string, language: "en" | "zh" = "zh"): QuestionEvaluation | null {
   const trimmed = question.trim();
 
   // 1. Check non-standard inputs (no deduct attempt)
